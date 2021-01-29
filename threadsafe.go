@@ -28,49 +28,48 @@ package mapset
 import "sync"
 
 type threadSafeSet struct {
-	s threadUnsafeSet
-	sync.RWMutex
+	objects threadUnsafeSet
+	mutex   sync.RWMutex
 }
 
 func newThreadSafeSet() threadSafeSet {
-	return threadSafeSet{s: newThreadUnsafeSet()}
+	return threadSafeSet{objects: newThreadUnsafeSet()}
 }
 
 func (set *threadSafeSet) Add(i interface{}) bool {
-	set.Lock()
-	ret := set.s.Add(i)
-	set.Unlock()
-	return ret
+	set.mutex.Lock()
+	defer set.mutex.Unlock()
+
+	return set.objects.Add(i)
 }
 
 func (set *threadSafeSet) Contains(i ...interface{}) bool {
-	set.RLock()
-	ret := set.s.Contains(i...)
-	set.RUnlock()
-	return ret
+	set.mutex.RLock()
+	defer set.mutex.RUnlock()
+
+	return set.objects.Contains(i...)
 }
 
 func (set *threadSafeSet) IsSubset(other Set) bool {
 	o := other.(*threadSafeSet)
 
-	set.RLock()
-	o.RLock()
+	set.mutex.RLock()
+	defer set.mutex.RUnlock()
+	o.mutex.RLock()
+	defer o.mutex.RUnlock()
 
-	ret := set.s.IsSubset(&o.s)
-	set.RUnlock()
-	o.RUnlock()
-	return ret
+	return set.objects.IsSubset(&o.objects)
 }
 
 func (set *threadSafeSet) IsProperSubset(other Set) bool {
 	o := other.(*threadSafeSet)
 
-	set.RLock()
-	defer set.RUnlock()
-	o.RLock()
-	defer o.RUnlock()
+	set.mutex.RLock()
+	defer set.mutex.RUnlock()
+	o.mutex.RLock()
+	defer o.mutex.RUnlock()
 
-	return set.s.IsProperSubset(&o.s)
+	return set.objects.IsProperSubset(&o.objects)
 }
 
 func (set *threadSafeSet) IsSuperset(other Set) bool {
@@ -84,93 +83,98 @@ func (set *threadSafeSet) IsProperSuperset(other Set) bool {
 func (set *threadSafeSet) Union(other Set) Set {
 	o := other.(*threadSafeSet)
 
-	set.RLock()
-	o.RLock()
+	set.mutex.RLock()
+	defer set.mutex.RUnlock()
+	o.mutex.RLock()
+	defer o.mutex.RUnlock()
 
-	unsafeUnion := set.s.Union(&o.s).(*threadUnsafeSet)
-	ret := &threadSafeSet{s: *unsafeUnion}
-	set.RUnlock()
-	o.RUnlock()
-	return ret
+	union := set.objects.Union(&o.objects).(*threadUnsafeSet)
+	return &threadSafeSet{objects: *union}
 }
 
 func (set *threadSafeSet) Intersect(other Set) Set {
 	o := other.(*threadSafeSet)
 
-	set.RLock()
-	o.RLock()
+	set.mutex.RLock()
+	defer set.mutex.RUnlock()
+	o.mutex.RLock()
+	defer o.mutex.RUnlock()
 
-	unsafeIntersection := set.s.Intersect(&o.s).(*threadUnsafeSet)
-	ret := &threadSafeSet{s: *unsafeIntersection}
-	set.RUnlock()
-	o.RUnlock()
-	return ret
+	unsafeIntersection := set.objects.Intersect(&o.objects).(*threadUnsafeSet)
+	return &threadSafeSet{objects: *unsafeIntersection}
 }
 
 func (set *threadSafeSet) Difference(other Set) Set {
 	o := other.(*threadSafeSet)
 
-	set.RLock()
-	o.RLock()
+	set.mutex.RLock()
+	defer set.mutex.RUnlock()
+	o.mutex.RLock()
+	defer o.mutex.RUnlock()
 
-	unsafeDifference := set.s.Difference(&o.s).(*threadUnsafeSet)
-	ret := &threadSafeSet{s: *unsafeDifference}
-	set.RUnlock()
-	o.RUnlock()
-	return ret
+	diff := set.objects.Difference(&o.objects).(*threadUnsafeSet)
+	return &threadSafeSet{objects: *diff}
 }
 
 func (set *threadSafeSet) SymmetricDifference(other Set) Set {
 	o := other.(*threadSafeSet)
 
-	set.RLock()
-	o.RLock()
+	set.mutex.RLock()
+	defer set.mutex.RUnlock()
+	o.mutex.RLock()
+	defer o.mutex.RUnlock()
 
-	unsafeDifference := set.s.SymmetricDifference(&o.s).(*threadUnsafeSet)
-	ret := &threadSafeSet{s: *unsafeDifference}
-	set.RUnlock()
-	o.RUnlock()
-	return ret
+	diff := set.objects.SymmetricDifference(&o.objects).(*threadUnsafeSet)
+	return &threadSafeSet{objects: *diff}
 }
 
 func (set *threadSafeSet) Clear() {
-	set.Lock()
-	set.s = newThreadUnsafeSet()
-	set.Unlock()
+	set.mutex.Lock()
+	defer set.mutex.Unlock()
+
+	set.objects = newThreadUnsafeSet()
 }
 
 func (set *threadSafeSet) Remove(i interface{}) {
-	set.Lock()
-	delete(set.s, i)
-	set.Unlock()
+	set.mutex.Lock()
+	defer set.mutex.Unlock()
+
+	delete(set.objects, i)
 }
 
 func (set *threadSafeSet) Cardinality() int {
-	set.RLock()
-	defer set.RUnlock()
-	return len(set.s)
+	set.mutex.RLock()
+	defer set.mutex.RUnlock()
+
+	return len(set.objects)
 }
 
-func (set *threadSafeSet) Each(cb func(interface{}) bool) {
-	set.RLock()
-	for elem := range set.s {
-		if cb(elem) {
+func (set *threadSafeSet) Length() int {
+	set.mutex.RLock()
+	defer set.mutex.RUnlock()
+
+	return len(set.objects)
+}
+
+func (set *threadSafeSet) Each(callback func(interface{}) bool) {
+	set.mutex.RLock()
+	defer set.mutex.RUnlock()
+	for elem := range set.objects {
+		if callback(elem) {
 			break
 		}
 	}
-	set.RUnlock()
 }
 
 func (set *threadSafeSet) Iter() <-chan interface{} {
 	ch := make(chan interface{})
 	go func() {
-		set.RLock()
-
-		for elem := range set.s {
+		set.mutex.RLock()
+		for elem := range set.objects {
 			ch <- elem
 		}
 		close(ch)
-		set.RUnlock()
+		set.mutex.RUnlock()
 	}()
 
 	return ch
@@ -180,9 +184,9 @@ func (set *threadSafeSet) Iterator() *Iterator {
 	iterator, ch, stopCh := newIterator()
 
 	go func() {
-		set.RLock()
+		set.mutex.RLock()
 	L:
-		for elem := range set.s {
+		for elem := range set.objects {
 			select {
 			case <-stopCh:
 				break L
@@ -190,7 +194,7 @@ func (set *threadSafeSet) Iterator() *Iterator {
 			}
 		}
 		close(ch)
-		set.RUnlock()
+		set.mutex.RUnlock()
 	}()
 
 	return iterator
@@ -199,85 +203,102 @@ func (set *threadSafeSet) Iterator() *Iterator {
 func (set *threadSafeSet) Equal(other Set) bool {
 	o := other.(*threadSafeSet)
 
-	set.RLock()
-	o.RLock()
+	set.mutex.RLock()
+	defer set.mutex.RUnlock()
+	o.mutex.RLock()
+	defer o.mutex.RUnlock()
 
-	ret := set.s.Equal(&o.s)
-	set.RUnlock()
-	o.RUnlock()
-	return ret
+	return set.objects.Equal(&o.objects)
 }
 
 func (set *threadSafeSet) Clone() Set {
-	set.RLock()
+	set.mutex.RLock()
+	defer set.mutex.RUnlock()
 
-	unsafeClone := set.s.Clone().(*threadUnsafeSet)
-	ret := &threadSafeSet{s: *unsafeClone}
-	set.RUnlock()
-	return ret
+	clone := set.objects.Clone().(*threadUnsafeSet)
+	return &threadSafeSet{objects: *clone}
 }
 
 func (set *threadSafeSet) String() string {
-	set.RLock()
-	ret := set.s.String()
-	set.RUnlock()
-	return ret
+	set.mutex.RLock()
+	defer set.mutex.RUnlock()
+
+	return set.objects.String()
 }
 
 func (set *threadSafeSet) PowerSet() Set {
-	set.RLock()
-	unsafePowerSet := set.s.PowerSet().(*threadUnsafeSet)
-	set.RUnlock()
+	set.mutex.RLock()
+	unsafePowerSet := set.objects.PowerSet().(*threadUnsafeSet)
+	set.mutex.RUnlock()
 
-	ret := &threadSafeSet{s: newThreadUnsafeSet()}
+	tss := &threadSafeSet{objects: newThreadUnsafeSet()}
 	for subset := range unsafePowerSet.Iter() {
 		unsafeSubset := subset.(*threadUnsafeSet)
-		ret.Add(&threadSafeSet{s: *unsafeSubset})
+		tss.Add(&threadSafeSet{objects: *unsafeSubset})
 	}
-	return ret
+
+	return tss
 }
 
 func (set *threadSafeSet) Pop() interface{} {
-	set.Lock()
-	defer set.Unlock()
-	return set.s.Pop()
+	set.mutex.Lock()
+	defer set.mutex.Unlock()
+
+	return set.objects.Pop()
 }
 
 func (set *threadSafeSet) CartesianProduct(other Set) Set {
 	o := other.(*threadSafeSet)
 
-	set.RLock()
-	o.RLock()
+	set.mutex.RLock()
+	defer set.mutex.RUnlock()
+	o.mutex.RLock()
+	defer set.mutex.RUnlock()
 
-	unsafeCartProduct := set.s.CartesianProduct(&o.s).(*threadUnsafeSet)
-	ret := &threadSafeSet{s: *unsafeCartProduct}
-	set.RUnlock()
-	o.RUnlock()
-	return ret
+	// unsafe cartesian product
+	ucp := set.objects.CartesianProduct(&o.objects).(*threadUnsafeSet)
+	return &threadSafeSet{objects: *ucp}
 }
 
 func (set *threadSafeSet) ToSlice() []interface{} {
 	keys := make([]interface{}, 0, set.Cardinality())
-	set.RLock()
-	for elem := range set.s {
+
+	set.mutex.RLock()
+	defer set.mutex.RUnlock()
+
+	for elem := range set.objects {
 		keys = append(keys, elem)
 	}
-	set.RUnlock()
+
+	return keys
+}
+
+func (set *threadSafeSet) Strings() []string {
+	keys := make([]string, 0, set.Length())
+
+	set.mutex.RLock()
+	defer set.mutex.RUnlock()
+
+	for elem := range set.objects {
+		switch elem.(type) {
+		case string:
+			keys = append(keys, elem.(string))
+		}
+	}
+
 	return keys
 }
 
 func (set *threadSafeSet) MarshalJSON() ([]byte, error) {
-	set.RLock()
-	b, err := set.s.MarshalJSON()
-	set.RUnlock()
+	set.mutex.RLock()
+	defer set.mutex.RUnlock()
 
-	return b, err
+	return set.objects.MarshalJSON()
 }
 
 func (set *threadSafeSet) UnmarshalJSON(p []byte) error {
-	set.RLock()
-	err := set.s.UnmarshalJSON(p)
-	set.RUnlock()
+	set.mutex.RLock()
+	defer set.mutex.RUnlock()
 
-	return err
+	return set.objects.UnmarshalJSON(p)
 }

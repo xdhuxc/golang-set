@@ -78,6 +78,30 @@ func Test_AddSet(t *testing.T) {
 	}
 }
 
+func Test_UnsafeStrings(t *testing.T) {
+	a := []string{"a", "b", "c", "d", "e", "f"}
+	set := NewThreadUnsafeSetFromStrings(a)
+	if set.Length() != 6 {
+		t.Errorf("the length of set is wrong: %d", set.Length())
+	}
+
+	if len(set.Strings()) != 6 {
+		t.Errorf("the length of string array is wrong: %d", len(set.Strings()))
+	}
+}
+
+func Test_SafeStrings(t *testing.T) {
+	a := []string{"a", "b", "c", "d", "e", "f"}
+	set := NewSetFromStrings(a)
+	if set.Length() != 6 {
+		t.Errorf("the length of set is wrong: %d", set.Length())
+	}
+
+	if len(set.Strings()) != 6 {
+		t.Errorf("the length of string array is wrong: %d", len(set.Strings()))
+	}
+}
+
 func Test_AddUnsafeSet(t *testing.T) {
 	a := makeUnsafeSet([]int{1, 2, 3})
 

@@ -56,6 +56,9 @@ requiredClasses.Add("Biology")
 scienceSlice := []interface{}{"Biology", "Chemistry"}
 scienceClasses := mapset.NewSetFromSlice(scienceSlice)
 
+languages := []string{"java", "golang", "python", "rust"}
+languageClasses := mapset.NewThreadUnsafeSetFromStrings(languages)
+
 electiveClasses := mapset.NewSet()
 electiveClasses.Add("Welding")
 electiveClasses.Add("Music")

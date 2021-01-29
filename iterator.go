@@ -49,10 +49,10 @@ func (i *Iterator) Stop() {
 
 // newIterator returns a new Iterator instance together with its item and stop channels.
 func newIterator() (*Iterator, chan<- interface{}, <-chan struct{}) {
-	itemChan := make(chan interface{})
-	stopChan := make(chan struct{})
+	c := make(chan interface{})
+	stop := make(chan struct{})
 	return &Iterator{
-		C:    itemChan,
-		stop: stopChan,
-	}, itemChan, stopChan
+		C:    c,
+		stop: stop,
+	}, c, stop
 }

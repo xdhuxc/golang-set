@@ -46,6 +46,9 @@ type Set interface {
 	// Returns the number of elements in the set.
 	Cardinality() int
 
+	// Returns the number of elements in the set.
+	Length() int
+
 	// Removes all elements from the set, leaving
 	// the empty set.
 	Clear()
@@ -157,7 +160,6 @@ type Set interface {
 	// Returns a new set with all elements in both sets.
 	//
 	// Note that the argument to Union must be of the
-
 	// same type as the receiver of the method.
 	// Otherwise, IsSuperset will panic.
 	Union(other Set) Set
@@ -173,13 +175,16 @@ type Set interface {
 
 	// Returns the members of the set as a slice.
 	ToSlice() []interface{}
+
+	// Returns the string members of the set as a slice
+	Strings() []string
 }
 
 // NewSet creates and returns a reference to an empty set.  Operations
 // on the resulting set are thread-safe.
-func NewSet(s ...interface{}) Set {
+func NewSet(objects ...interface{}) Set {
 	set := newThreadSafeSet()
-	for _, item := range s {
+	for _, item := range objects {
 		set.Add(item)
 	}
 	return &set
@@ -187,15 +192,24 @@ func NewSet(s ...interface{}) Set {
 
 // NewSetWith creates and returns a new set with the given elements.
 // Operations on the resulting set are thread-safe.
-func NewSetWith(elts ...interface{}) Set {
-	return NewSetFromSlice(elts)
+func NewSetWith(objects ...interface{}) Set {
+	return NewSetFromSlice(objects)
 }
 
 // NewSetFromSlice creates and returns a reference to a set from an
 // existing slice.  Operations on the resulting set are thread-safe.
-func NewSetFromSlice(s []interface{}) Set {
-	a := NewSet(s...)
-	return a
+func NewSetFromSlice(objects []interface{}) Set {
+	return NewSet(objects...)
+}
+
+// NewSetFromStrings creates and returns a reference to a set from an
+// existing string array.  Operations on the resulting set are thread-safe.
+func NewSetFromStrings(objects []string) Set {
+	set := newThreadSafeSet()
+	for _, object := range objects {
+		set.Add(object)
+	}
+	return &set
 }
 
 // NewThreadUnsafeSet creates and returns a reference to an empty set.
@@ -208,10 +222,21 @@ func NewThreadUnsafeSet() Set {
 // NewThreadUnsafeSetFromSlice creates and returns a reference to a
 // set from an existing slice.  Operations on the resulting set are
 // not thread-safe.
-func NewThreadUnsafeSetFromSlice(s []interface{}) Set {
-	a := NewThreadUnsafeSet()
-	for _, item := range s {
-		a.Add(item)
+func NewThreadUnsafeSetFromSlice(objects []interface{}) Set {
+	set := NewThreadUnsafeSet()
+	for _, item := range objects {
+		set.Add(item)
 	}
-	return a
+	return set
+}
+
+// NewThreadUnsafeSetFromSlice creates and returns a reference to a
+// set from an existing slice.  Operations on the resulting set are
+// not thread-safe.
+func NewThreadUnsafeSetFromStrings(objects []string) Set {
+	set := NewThreadUnsafeSet()
+	for _, item := range objects {
+		set.Add(item)
+	}
+	return set
 }

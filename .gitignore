@@ -20,3 +20,7 @@ _cgo_export.*
 _testmain.go
 
 *.exe
+
+# IDE and MacOS
+.idea
+.DS_Store

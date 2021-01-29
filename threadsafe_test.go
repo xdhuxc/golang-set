@@ -27,6 +27,7 @@ package mapset
 
 import (
 	"encoding/json"
+	"fmt"
 	"math/rand"
 	"runtime"
 	"sync"
@@ -444,6 +445,34 @@ func Test_ToSlice(t *testing.T) {
 	}
 
 	for _, i := range setAsSlice {
+		if !s.Contains(i) {
+			t.Errorf("Set is missing element: %v", i)
+		}
+	}
+}
+
+func Test_Strings(t *testing.T) {
+	runtime.GOMAXPROCS(2)
+
+	s := NewSet()
+	ints := rand.Perm(N)
+
+	var wg sync.WaitGroup
+	wg.Add(len(ints))
+	for i := 0; i < len(ints); i++ {
+		go func(i int) {
+			s.Add(fmt.Sprintf("%d", i))
+			wg.Done()
+		}(i)
+	}
+	wg.Wait()
+
+	ss := s.Strings()
+	if len(ss) != s.Cardinality() {
+		t.Errorf("Set length is incorrect: %v", len(ss))
+	}
+
+	for _, i := range ss {
 		if !s.Contains(i) {
 			t.Errorf("Set is missing element: %v", i)
 		}

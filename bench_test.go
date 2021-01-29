@@ -1,6 +1,7 @@
 package mapset
 
 import (
+	"fmt"
 	"math/rand"
 	"testing"
 )
@@ -19,6 +20,14 @@ func toInterfaces(i []int) []interface{} {
 		ifs[ind] = v
 	}
 	return ifs
+}
+
+func toStrings(sources []int) []string {
+	targets := make([]string, len(sources))
+	for i, item := range sources {
+		targets[i] = fmt.Sprintf("%d", item)
+	}
+	return targets
 }
 
 func benchAdd(b *testing.B, s Set) {
